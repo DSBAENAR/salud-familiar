@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const tipoLabels: Record<string, string> = {
   historia_clinica: "Historias clinicas",
@@ -71,7 +72,8 @@ export default async function DocumentosPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {docsPorEspecialidad.map((esp) => (
-            <Card key={esp.id} className="hover:shadow-md transition-shadow cursor-pointer group">
+            <Link key={esp.id} href={`/documentos/${encodeURIComponent(esp.nombre)}`}>
+            <Card className="hover:shadow-md transition-shadow cursor-pointer group">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -103,6 +105,7 @@ export default async function DocumentosPage() {
                 </div>
               </CardContent>
             </Card>
+            </Link>
           ))}
         </div>
       )}

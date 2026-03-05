@@ -1,11 +1,12 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
 export const pacientes = sqliteTable("pacientes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   nombre: text("nombre").notNull(),
   identificacion: text("identificacion").notNull(),
   eps: text("eps").notNull().default("Sura"),
-  createdAt: text("created_at").notNull().default("(datetime('now'))"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 
 export const especialidades = sqliteTable("especialidades", {
@@ -27,7 +28,7 @@ export const citas = sqliteTable("citas", {
   notas: text("notas"),
   autorizacionId: integer("autorizacion_id").references(() => autorizaciones.id),
   emailId: text("email_id"),
-  createdAt: text("created_at").notNull().default("(datetime('now'))"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 
 export const autorizaciones = sqliteTable("autorizaciones", {
@@ -40,7 +41,7 @@ export const autorizaciones = sqliteTable("autorizaciones", {
   estado: text("estado").notNull().default("pendiente"), // pendiente, solicitada, aprobada, rechazada
   fechaAprobacion: text("fecha_aprobacion"),
   emailId: text("email_id"),
-  createdAt: text("created_at").notNull().default("(datetime('now'))"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 
 export const documentos = sqliteTable("documentos", {
@@ -51,8 +52,16 @@ export const documentos = sqliteTable("documentos", {
   tipo: text("tipo").notNull(), // historia_clinica, orden, autorizacion, examen, medicamento, cita
   nombre: text("nombre").notNull(),
   rutaArchivo: text("ruta_archivo").notNull(),
+  encriptado: integer("encriptado", { mode: "boolean" }).notNull().default(false),
   emailId: text("email_id"),
-  createdAt: text("created_at").notNull().default("(datetime('now'))"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+});
+
+export const emailsProcesados = sqliteTable("emails_procesados", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  emailId: text("email_id").notNull().unique(),
+  tipo: text("tipo").notNull(),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 
 export const ordenes = sqliteTable("ordenes", {
@@ -64,5 +73,5 @@ export const ordenes = sqliteTable("ordenes", {
   tipo: text("tipo").notNull(), // remision, examen, medicamento
   estado: text("estado").notNull().default("pendiente"), // pendiente, en_proceso, completada
   emailId: text("email_id"),
-  createdAt: text("created_at").notNull().default("(datetime('now'))"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });

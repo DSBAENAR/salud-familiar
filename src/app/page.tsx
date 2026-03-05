@@ -52,7 +52,8 @@ export default async function Dashboard() {
   const autorizaciones = await db.select().from(schema.autorizaciones).where(eq(schema.autorizaciones.pacienteId, 1)).orderBy(schema.autorizaciones.createdAt);
   const ordenesResult = await db.select().from(schema.ordenes).where(eq(schema.ordenes.pacienteId, 1));
 
-  const citasProximas = citas.filter((c) => c.estado === "pendiente" || c.estado === "confirmada");
+  const hoy = new Date().toISOString().split("T")[0];
+  const citasProximas = citas.filter((c) => c.fecha >= hoy && c.estado !== "cancelada" && c.estado !== "completada");
   const autPendientes = autorizaciones.filter((a) => a.estado === "pendiente" || a.estado === "solicitada");
   const ordPendientes = ordenesResult.filter((o) => o.estado === "pendiente");
   const autAprobadas = autorizaciones.filter((a) => a.estado === "aprobada");

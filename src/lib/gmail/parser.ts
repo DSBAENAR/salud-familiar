@@ -1,4 +1,4 @@
-export type EmailType = "cita_confirmada" | "autorizacion_aprobada" | "documentos_salud" | "desconocido";
+export type EmailType = "cita_confirmada" | "cita_cancelada" | "autorizacion_aprobada" | "documentos_salud" | "desconocido";
 
 export interface ParsedCita {
   type: "cita_confirmada";
@@ -66,9 +66,10 @@ function extractField(text: string, field: string): string {
 
 function normalizeDate(dateStr: string): string {
   // "2026/04/10" → "2026-04-10"
+  // "2026/03/6" → "2026-03-06"
   // "viernes, 10 de abril de 2026" → "2026-04-10"
-  const slashMatch = dateStr.match(/(\d{4})\/(\d{2})\/(\d{2})/);
-  if (slashMatch) return `${slashMatch[1]}-${slashMatch[2]}-${slashMatch[3]}`;
+  const slashMatch = dateStr.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  if (slashMatch) return `${slashMatch[1]}-${slashMatch[2].padStart(2, "0")}-${slashMatch[3].padStart(2, "0")}`;
 
   const meses: Record<string, string> = {
     enero: "01", febrero: "02", marzo: "03", abril: "04",
@@ -102,9 +103,23 @@ function normalizeTime(timeStr: string): string {
   return `${hours.toString().padStart(2, "0")}:${minutes}`;
 }
 
-export function classifyEmail(subject: string, from: string): EmailType {
+export function classifyEmail(subject: string, from: string, body: string = ""): EmailType {
   const subjectLower = subject.toLowerCase();
   const fromLower = from.toLowerCase();
+  const bodyLower = body.toLowerCase();
+
+  // Cita cancelada: check subject AND body — must check BEFORE confirmed
+  if (
+    subjectLower.includes("cancelada") ||
+    subjectLower.includes("cancelacion") ||
+    subjectLower.includes("cancelación") ||
+    bodyLower.includes("fue cancelada") ||
+    bodyLower.includes("ha sido cancelada") ||
+    bodyLower.includes("se cancelo") ||
+    bodyLower.includes("se canceló")
+  ) {
+    return "cita_cancelada";
+  }
 
   // Cita confirmada: "SURA te confirma" or "Cita MED.INTERNA"
   if (
@@ -140,27 +155,41 @@ export function classifyEmail(subject: string, from: string): EmailType {
 export function parseCitaEmail(body: string, subject: string): ParsedCita {
   const text = cleanHtml(body);
 
-  // Try to extract from structured fields
+  // Try to extract specialty from subject or body
   let especialidad = "";
-  const espMatch = subject.match(/cita\s+(?:para\s+)?(\S+)/i) || text.match(/cita\s+para\s+(\S+)/i);
+  // Match "cita para MED.INTERNA" or "Cita MEDICO" etc.
+  const espMatch = subject.match(/cita\s+(?:para\s+)?([\w.]+)/i) || text.match(/cita\s+para\s+([\w.]+)/i);
   if (espMatch) {
-    especialidad = espMatch[1].replace(/[.,]/g, "");
+    especialidad = espMatch[1].replace(/[.,;]/g, "").trim();
   }
-  // Map abbreviations
+  // Map abbreviations to clean names
   const espMap: Record<string, string> = {
+    "MEDINTERNA": "Medicina Interna",
     "MED.INTERNA": "Medicina Interna",
     "MED INTERNA": "Medicina Interna",
     "HEMATOLOGIA": "Hematologia",
     "NEUMOLOGIA": "Neumologia",
     "UROLOGIA": "Urologia",
     "FISIATRIA": "Fisiatria",
+    "MEDICO": "Medicina General",
+    "MEDICINA": "Medicina General",
+    "ODONTOLOGIA": "Odontologia",
+    "DERMATOLOGIA": "Dermatologia",
+    "OFTALMOLOGIA": "Oftalmologia",
+    "NEFROLOGIA": "Nefrologia",
+    "CARDIOLOGIA": "Cardiologia",
   };
   especialidad = espMap[especialidad.toUpperCase()] || especialidad;
 
   const fecha = normalizeDate(extractField(text, "Fecha de la cita"));
   const hora = normalizeTime(extractField(text, "Hora de la cita"));
   const profesional = extractField(text, "Profesional a cargo");
-  const lugar = extractField(text, "Lugar para tu atenci");
+
+  // "Lugar para tu atención:" — extract carefully, the field name may get split
+  let lugar = extractField(text, "Lugar para tu atenci");
+  // Clean up: may start with "ón:" or "n:" due to HTML split
+  lugar = lugar.replace(/^[oó]n:\s*/i, "").trim();
+
   const paciente = extractField(text, "Nombre");
 
   return {
@@ -171,6 +200,56 @@ export function parseCitaEmail(body: string, subject: string): ParsedCita {
     profesional,
     lugar,
     paciente,
+  };
+}
+
+export function parseCancelacionEmail(body: string, subject: string): ParsedCita {
+  const text = cleanHtml(body);
+
+  // "la cita de MEDICO GENERAL que teníamos programada para el 2026/03/06 a las 6:20 a.m. fue cancelada"
+  let especialidad = "";
+  const espMatch = text.match(/cita\s+de\s+([\w\s.]+?)\s+que\s+ten/i);
+  if (espMatch) {
+    especialidad = espMatch[1].trim();
+  }
+
+  // Map abbreviations
+  const espMap: Record<string, string> = {
+    "MEDINTERNA": "Medicina Interna",
+    "MED.INTERNA": "Medicina Interna",
+    "MED INTERNA": "Medicina Interna",
+    "HEMATOLOGIA": "Hematologia",
+    "NEUMOLOGIA": "Neumologia",
+    "UROLOGIA": "Urologia",
+    "FISIATRIA": "Fisiatria",
+    "MEDICO GENERAL": "Medicina General",
+    "MEDICO": "Medicina General",
+    "MEDICINA": "Medicina General",
+  };
+  especialidad = espMap[especialidad.toUpperCase()] || especialidad;
+
+  // "para el 2026/03/06"
+  let fecha = "";
+  const fechaMatch = text.match(/para\s+el\s+(\d{4}\/\d{1,2}\/\d{1,2})/i);
+  if (fechaMatch) {
+    fecha = normalizeDate(fechaMatch[1]);
+  }
+
+  // "a las 6:20 a.m."
+  let hora = "";
+  const horaMatch = text.match(/a\s+las\s+(\d{1,2}:\d{2}(?:\s*[ap]\.?m\.?)?)/i);
+  if (horaMatch) {
+    hora = normalizeTime(horaMatch[1]);
+  }
+
+  return {
+    type: "cita_confirmada",
+    especialidad: especialidad || "Sin especificar",
+    fecha,
+    hora,
+    profesional: "",
+    lugar: "",
+    paciente: "",
   };
 }
 

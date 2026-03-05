@@ -9,6 +9,7 @@ import {
   Link2,
   FileCheck,
   Calendar,
+  CalendarX2,
   FileText,
   Loader2,
   HelpCircle,
@@ -32,18 +33,21 @@ interface SyncResult {
 
 const typeIcons: Record<string, typeof Calendar> = {
   cita_confirmada: Calendar,
+  cita_cancelada: CalendarX2,
   autorizacion_aprobada: FileCheck,
   documentos_salud: FileText,
 };
 
 const typeLabels: Record<string, string> = {
   cita_confirmada: "Cita confirmada",
+  cita_cancelada: "Cita cancelada",
   autorizacion_aprobada: "Autorizacion aprobada",
   documentos_salud: "Documentos de salud",
 };
 
 const typeStyles: Record<string, string> = {
   cita_confirmada: "bg-blue-100 text-blue-700",
+  cita_cancelada: "bg-red-100 text-red-700",
   autorizacion_aprobada: "bg-green-100 text-green-700",
   documentos_salud: "bg-purple-100 text-purple-700",
 };

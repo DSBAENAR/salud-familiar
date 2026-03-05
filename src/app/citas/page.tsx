@@ -28,8 +28,9 @@ export default async function CitasPage() {
     .where(eq(schema.citas.pacienteId, 1))
     .orderBy(schema.citas.fecha);
 
-  const proximas = citas.filter((c) => c.estado === "pendiente" || c.estado === "confirmada");
-  const pasadas = citas.filter((c) => c.estado === "completada" || c.estado === "cancelada");
+  const hoy = new Date().toISOString().split("T")[0];
+  const proximas = citas.filter((c) => c.fecha >= hoy && c.estado !== "cancelada" && c.estado !== "completada");
+  const pasadas = citas.filter((c) => c.fecha < hoy || c.estado === "cancelada" || c.estado === "completada");
 
   return (
     <div className="space-y-6">
