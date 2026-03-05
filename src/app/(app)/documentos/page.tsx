@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
-import { SubirDocumento } from "@/components/subir-documento";
+import { NuevaEspecialidad } from "@/components/nueva-especialidad";
 
 const tipoLabels: Record<string, string> = {
   historia_clinica: "Historias clinicas",
@@ -56,7 +56,7 @@ export default async function DocumentosPage() {
             Organizados por especialidad - {documentos.length} documento(s) total
           </p>
         </div>
-        <SubirDocumento especialidades={especialidades.map((e) => e.nombre)} />
+        <NuevaEspecialidad />
       </div>
 
       {especialidades.length === 0 ? (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import { put } from "@vercel/blob";
 import path from "path";
 import { writeFile, mkdir } from "fs/promises";
 
@@ -53,28 +54,35 @@ export async function POST(request: NextRequest) {
       especialidadId = nueva.id;
     }
 
-    // Save file to uploads/{especialidad}/{tipo}/
     const sanitize = (s: string) =>
       s.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s\-_.]/g, "").trim();
-    const dirPath = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-      sanitize(especialidad),
-      tipo
-    );
-    await mkdir(dirPath, { recursive: true });
-
     const timestamp = Date.now();
     const ext = path.extname(file.name) || ".pdf";
     const safeName = sanitize(path.basename(file.name, ext));
-    const fileName = `${timestamp}_${safeName}${ext}`;
-    const filePath = path.join(dirPath, fileName);
+    const blobPath = `uploads/${sanitize(especialidad)}/${tipo}/${timestamp}_${safeName}${ext}`;
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(filePath, buffer);
+    let rutaArchivo: string;
 
-    const rutaArchivo = `/uploads/${sanitize(especialidad)}/${tipo}/${fileName}`;
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      // Production: use Vercel Blob
+      const blob = await put(blobPath, file, { access: "public" });
+      rutaArchivo = blob.url;
+    } else {
+      // Local development: save to filesystem
+      const dirPath = path.join(
+        process.cwd(),
+        "public",
+        "uploads",
+        sanitize(especialidad),
+        tipo
+      );
+      await mkdir(dirPath, { recursive: true });
+      const fileName = `${timestamp}_${safeName}${ext}`;
+      const filePath = path.join(dirPath, fileName);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      await writeFile(filePath, buffer);
+      rutaArchivo = `/uploads/${sanitize(especialidad)}/${tipo}/${fileName}`;
+    }
 
     const [nuevo] = await db
       .insert(schema.documentos)
