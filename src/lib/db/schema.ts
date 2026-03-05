@@ -53,6 +53,7 @@ export const documentos = sqliteTable("documentos", {
   nombre: text("nombre").notNull(),
   rutaArchivo: text("ruta_archivo").notNull(),
   encriptado: integer("encriptado", { mode: "boolean" }).notNull().default(false),
+  driveFileId: text("drive_file_id"),
   emailId: text("email_id"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
@@ -73,5 +74,16 @@ export const ordenes = sqliteTable("ordenes", {
   tipo: text("tipo").notNull(), // remision, examen, medicamento
   estado: text("estado").notNull().default("pendiente"), // pendiente, en_proceso, completada
   emailId: text("email_id"),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+});
+
+export const tareas = sqliteTable("tareas", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  pacienteId: integer("paciente_id").notNull().references(() => pacientes.id),
+  autorizacionId: integer("autorizacion_id").references(() => autorizaciones.id),
+  ordenId: integer("orden_id").references(() => ordenes.id),
+  descripcion: text("descripcion").notNull(),
+  completada: integer("completada", { mode: "boolean" }).notNull().default(false),
+  fechaLimite: text("fecha_limite"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });

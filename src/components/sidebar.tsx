@@ -10,8 +10,10 @@ import {
   ClipboardList,
   Mail,
   HeartPulse,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { signOut, useSession } from "next-auth/react";
 
 const navItems = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -24,6 +26,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 flex w-64 flex-col bg-[#0f172a] text-white">
@@ -77,9 +80,32 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-6 py-5">
-        <p className="text-xs text-slate-600">Salud Familiar v0.1</p>
+      {/* User + Footer */}
+      <div className="px-4 py-4 space-y-3">
+        {session?.user && (
+          <div className="flex items-center gap-3 px-2">
+            {session.user.image && (
+              <img
+                src={session.user.image}
+                alt=""
+                className="h-7 w-7 rounded-full"
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-slate-300 truncate">
+                {session.user.name}
+              </p>
+            </div>
+            <button
+              onClick={() => signOut()}
+              className="text-slate-500 hover:text-slate-300 transition-colors"
+              title="Cerrar sesion"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        <p className="px-2 text-xs text-slate-600">Salud Familiar v0.1</p>
       </div>
     </aside>
   );

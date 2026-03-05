@@ -13,6 +13,8 @@ import {
   FileText,
   Loader2,
   HelpCircle,
+  CloudUpload,
+  Cloud,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,11 +60,22 @@ export default function CorreosPage() {
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Drive backup state
+  const [backingUp, setBackingUp] = useState(false);
+  const [backupResult, setBackupResult] = useState<{ uploaded: number; total: number; errors: string[] } | null>(null);
+  const [backupStatus, setBackupStatus] = useState<{ total: number; backed: number; pending: number } | null>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
+
   useEffect(() => {
     fetch("/api/gmail/status")
       .then((r) => r.json())
       .then((data) => setConnected(data.connected))
       .catch(() => setConnected(false));
+
+    fetch("/api/drive/status")
+      .then((r) => r.json())
+      .then((data) => setBackupStatus(data))
+      .catch(() => {});
   }, []);
 
   const handleSync = async () => {
@@ -145,6 +158,97 @@ export default function CorreosPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Google Drive Backup */}
+      {connected && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`flex items-center justify-center rounded-lg p-3 ${
+                  backupStatus && backupStatus.pending === 0
+                    ? "bg-green-100 text-green-700"
+                    : "bg-blue-100 text-blue-700"
+                }`}>
+                  <Cloud className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="font-medium">Google Drive</p>
+                  <p className="text-sm text-muted-foreground">
+                    {backupStatus
+                      ? backupStatus.pending === 0
+                        ? `${backupStatus.backed} documento(s) respaldados`
+                        : `${backupStatus.backed} respaldados, ${backupStatus.pending} pendiente(s)`
+                      : "Cargando estado..."}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant={backupStatus && backupStatus.pending > 0 ? "default" : "outline"}
+                onClick={async () => {
+                  setBackingUp(true);
+                  setBackupError(null);
+                  setBackupResult(null);
+                  try {
+                    const res = await fetch("/api/drive/backup", { method: "POST" });
+                    const data = await res.json();
+                    if (!res.ok) {
+                      setBackupError(data.error);
+                    } else {
+                      setBackupResult(data);
+                      // Refresh status
+                      const statusRes = await fetch("/api/drive/status");
+                      setBackupStatus(await statusRes.json());
+                    }
+                  } catch {
+                    setBackupError("Error al respaldar");
+                  } finally {
+                    setBackingUp(false);
+                  }
+                }}
+                disabled={backingUp || (backupStatus?.pending === 0)}
+                className="gap-2"
+              >
+                {backingUp ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CloudUpload className="h-4 w-4" />
+                )}
+                {backingUp
+                  ? "Respaldando..."
+                  : backupStatus?.pending === 0
+                    ? "Todo respaldado"
+                    : `Respaldar (${backupStatus?.pending || 0})`}
+              </Button>
+            </div>
+
+            {backupResult && backupResult.uploaded > 0 && (
+              <div className="mt-4 flex items-start gap-3 p-3 rounded-lg bg-green-50">
+                <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                <p className="text-sm text-green-800">
+                  {backupResult.uploaded} documento(s) subidos a Google Drive
+                  {backupResult.errors.length > 0 && `, ${backupResult.errors.length} con error`}
+                </p>
+              </div>
+            )}
+
+            {backupError && (
+              <div className="mt-4 flex items-start gap-3 p-3 rounded-lg bg-red-50">
+                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
+                <div>
+                  <p className="text-sm text-red-800">{backupError}</p>
+                  {backupError.includes("No autenticado") && (
+                    <p className="text-xs text-red-600 mt-1">
+                      Necesitas reconectar Gmail para habilitar Google Drive.
+                      <a href="/api/gmail/auth" className="underline ml-1">Reconectar</a>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* How it works */}
       {!syncResult && !error && (

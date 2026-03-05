@@ -4,6 +4,7 @@ import { ClipboardList, Plus, ArrowRight, FileText, ExternalLink, Lock } from "l
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClasificarOrdenes } from "@/components/clasificar-orden";
+import { Checklist } from "@/components/checklist";
 
 const estadoStyles: Record<string, string> = {
   pendiente: "bg-amber-100 text-amber-800",
@@ -145,6 +146,7 @@ export default async function OrdenesPage() {
                           Tramitar <ArrowRight className="h-3 w-3" />
                         </Button>
                       </div>
+                      <Checklist ordenId={orden.id} />
                     </CardContent>
                   </Card>
                 ))}

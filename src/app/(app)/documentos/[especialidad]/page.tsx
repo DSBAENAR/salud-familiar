@@ -4,12 +4,12 @@ import {
   FileText,
   ArrowLeft,
   ExternalLink,
-  Upload,
   Lock,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { SubirDocumento } from "@/components/subir-documento";
 
 const tipoLabels: Record<string, string> = {
   historia_clinica: "Historia clinica",
@@ -73,9 +73,7 @@ export default async function EspecialidadDocumentosPage({
           <h2 className="text-xl font-semibold">{nombreEspecialidad}</h2>
           <p className="text-sm text-muted-foreground">{documentos.length} documento(s)</p>
         </div>
-        <Button className="gap-2">
-          <Upload className="h-4 w-4" /> Subir documento
-        </Button>
+        <SubirDocumento especialidades={[nombreEspecialidad]} especialidadInicial={nombreEspecialidad} />
       </div>
 
       {documentos.length === 0 ? (

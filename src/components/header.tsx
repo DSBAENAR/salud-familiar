@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Bell } from "lucide-react";
+import { Notificaciones } from "@/components/notificaciones";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -16,7 +16,6 @@ function getPageTitle(pathname: string): string {
   if (pageTitles[pathname]) {
     return pageTitles[pathname];
   }
-  // Handle nested routes by matching the first segment
   const segment = "/" + pathname.split("/").filter(Boolean)[0];
   return pageTitles[segment] ?? "Dashboard";
 }
@@ -32,15 +31,7 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
-        <button
-          type="button"
-          className="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
-          aria-label="Notificaciones"
-        >
-          <Bell className="size-5" />
-          {/* Notification dot */}
-          <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-sky-500" />
-        </button>
+        <Notificaciones />
       </div>
     </header>
   );

@@ -4,6 +4,7 @@ import { FileCheck, Plus, Hash, Calendar } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClasificarAutorizaciones } from "@/components/clasificar-autorizacion";
+import { Checklist } from "@/components/checklist";
 import Link from "next/link";
 
 const estadoStyles: Record<string, string> = {
@@ -103,6 +104,7 @@ export default async function AutorizacionesPage() {
                           <Hash className="h-3 w-3" /> {aut.numero}
                         </p>
                       )}
+                      <Checklist autorizacionId={aut.id} />
                     </div>
                   </div>
                 </CardContent>
