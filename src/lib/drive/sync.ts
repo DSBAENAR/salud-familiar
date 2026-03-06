@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import { eq, isNull } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
+import { resolveUploadPath } from "@/lib/uploads";
 
 const ROOT_FOLDER_NAME = "Salud Familiar - Documentos";
 
@@ -74,7 +75,7 @@ export async function backupToDrive(): Promise<BackupResult> {
 
   for (const doc of documentos) {
     try {
-      const filePath = path.join(process.cwd(), "public", doc.rutaArchivo);
+      const filePath = resolveUploadPath(doc.rutaArchivo);
 
       if (!fs.existsSync(filePath)) {
         result.skipped++;

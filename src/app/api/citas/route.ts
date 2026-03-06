@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const { especialidad, fecha, hora, lugar, profesional, estado, notas, especialidadId, autorizacionId, emailId } = body;
+    const { especialidad, fecha, hora, lugar, direccion, profesional, estado, notas, observaciones, especialidadId, autorizacionId, emailId } = body;
 
     if (!especialidad || !fecha) {
       return NextResponse.json(
@@ -59,8 +59,10 @@ export async function POST(request: NextRequest) {
         fecha,
         hora: hora ?? null,
         lugar: lugar ?? null,
+        direccion: direccion ?? null,
         estado: estado ?? "pendiente",
         notas: notas ?? null,
+        observaciones: observaciones ?? null,
         autorizacionId: autorizacionId ?? null,
         emailId: emailId ?? null,
       })

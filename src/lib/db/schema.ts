@@ -53,8 +53,10 @@ export const citas = pgTable("citas", {
   fecha: text("fecha").notNull(),
   hora: text("hora"),
   lugar: text("lugar"),
+  direccion: text("direccion"),
   estado: text("estado").notNull().default("pendiente"),
   notas: text("notas"),
+  observaciones: text("observaciones"),
   autorizacionId: integer("autorizacion_id").references(
     () => autorizaciones.id
   ),
