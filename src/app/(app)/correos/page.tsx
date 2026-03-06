@@ -78,19 +78,28 @@ export default function CorreosPage() {
       .catch(() => {});
   }, []);
 
-  const handleSync = async () => {
+  const handleSync = async (force = false) => {
     setSyncing(true);
     setError(null);
     setSyncResult(null);
 
     try {
-      const response = await fetch("/api/gmail/sync", { method: "POST" });
+      const response = await fetch("/api/gmail/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force }),
+      });
       const data = await response.json();
 
       if (!response.ok) {
         setError(data.error);
       } else {
         setSyncResult(data);
+        // Refresh drive backup status after sync
+        fetch("/api/drive/status")
+          .then((r) => r.json())
+          .then((data) => setBackupStatus(data))
+          .catch(() => {});
       }
     } catch {
       setError("Error de conexion. Intenta de nuevo.");
@@ -137,16 +146,27 @@ export default function CorreosPage() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap justify-end">
               {connected ? (
-                <Button onClick={handleSync} disabled={syncing} className="gap-2">
-                  {syncing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                  {syncing ? "Sincronizando..." : "Sincronizar ahora"}
-                </Button>
+                <>
+                  <Button onClick={() => handleSync(false)} disabled={syncing} className="gap-2">
+                    {syncing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    {syncing ? "Sincronizando..." : "Sincronizar ahora"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSync(true)}
+                    disabled={syncing}
+                    className="gap-2 text-xs"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Forzar re-sync
+                  </Button>
+                </>
               ) : (
                 <a href="/api/gmail/auth">
                   <Button className="gap-2">
