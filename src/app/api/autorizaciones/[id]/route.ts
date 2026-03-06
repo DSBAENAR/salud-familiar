@@ -3,6 +3,7 @@ import { db, schema } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
+import { resolveUploadPath, buildUploadUrl, UPLOADS_DIR } from "@/lib/uploads";
 
 export async function PATCH(
   request: NextRequest,
@@ -55,10 +56,9 @@ export async function PATCH(
     // Move files from old folder to new folder
     const needsMove = oldEspecialidad === "Por clasificar" || oldEspecialidad === "Sin especificar";
     if (needsMove) {
-      const uploadsDir = path.join(process.cwd(), "public", "uploads");
-      const oldDir = path.join(uploadsDir, oldEspecialidad.replace(/\s+/g, "_"), "autorizacion");
+      const oldDir = path.join(UPLOADS_DIR, oldEspecialidad.replace(/\s+/g, "_"), "autorizacion");
       const newDir = path.join(
-        uploadsDir,
+        UPLOADS_DIR,
         especialidad.replace(/\s+/g, "_"),
         "autorizacion"
       );
@@ -75,13 +75,13 @@ export async function PATCH(
           .where(eq(schema.documentos.emailId, current[0].emailId || ""));
 
         for (const doc of docs) {
-          const oldPath = path.join(process.cwd(), "public", doc.rutaArchivo);
+          const oldPath = resolveUploadPath(doc.rutaArchivo);
           if (fs.existsSync(oldPath)) {
             const fileName = path.basename(doc.rutaArchivo);
             const newPath = path.join(newDir, fileName);
             fs.renameSync(oldPath, newPath);
 
-            const newRelative = `/uploads/${especialidad.replace(/\s+/g, "_")}/autorizacion/${fileName}`;
+            const newRelative = buildUploadUrl(especialidad, "autorizacion", fileName);
             await db
               .update(schema.documentos)
               .set({ especialidad, rutaArchivo: newRelative })
@@ -134,7 +134,7 @@ export async function DELETE(
         .where(eq(schema.documentos.emailId, emailId));
 
       for (const doc of docs) {
-        const filePath = path.join(process.cwd(), "public", doc.rutaArchivo);
+        const filePath = resolveUploadPath(doc.rutaArchivo);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }

@@ -13,8 +13,7 @@ import { eq } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
-
-const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
+import { UPLOADS_DIR } from "@/lib/uploads";
 
 function ensureUploadsDir(subdir: string) {
   const dir = path.join(UPLOADS_DIR, subdir);
@@ -385,7 +384,7 @@ async function downloadAttachments(
         // Try to decrypt if it's a password-protected PDF
         const wasDecrypted = tryDecryptPdf(filePath);
 
-        const relativePath = `/uploads/${especialidad.replace(/\s+/g, "_")}/${tipo}/${att.nombre}`;
+        const relativePath = `/api/uploads/${especialidad.replace(/\s+/g, "_")}/${tipo}/${att.nombre}`;
         saved.push({ nombre: att.nombre, ruta: relativePath, decrypted: wasDecrypted });
       }
     } catch (error) {

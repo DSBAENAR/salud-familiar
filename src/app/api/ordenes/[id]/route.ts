@@ -3,6 +3,7 @@ import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
+import { resolveUploadPath, buildUploadUrl, UPLOADS_DIR } from "@/lib/uploads";
 
 export async function PATCH(
   request: NextRequest,
@@ -49,9 +50,8 @@ export async function PATCH(
       const doc = docs.find((d) => d.nombre === fileName && d.tipo === "orden");
 
       if (doc) {
-        const uploadsDir = path.join(process.cwd(), "public", "uploads");
-        const oldPath = path.join(process.cwd(), "public", doc.rutaArchivo);
-        const newDir = path.join(uploadsDir, especialidad.replace(/\s+/g, "_"), "orden");
+        const oldPath = resolveUploadPath(doc.rutaArchivo);
+        const newDir = path.join(UPLOADS_DIR, especialidad.replace(/\s+/g, "_"), "orden");
 
         if (!fs.existsSync(newDir)) {
           fs.mkdirSync(newDir, { recursive: true });
@@ -62,7 +62,7 @@ export async function PATCH(
           fs.renameSync(oldPath, newPath);
         }
 
-        const newRelative = `/uploads/${especialidad.replace(/\s+/g, "_")}/orden/${doc.nombre}`;
+        const newRelative = buildUploadUrl(especialidad, "orden", doc.nombre);
         await db
           .update(schema.documentos)
           .set({ especialidad, rutaArchivo: newRelative })

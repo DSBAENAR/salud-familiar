@@ -40,6 +40,9 @@ RUN cp -r .next/standalone/. /app/standalone/ \
 # Copy automation script to standalone
 RUN cp -r scripts /app/standalone/scripts 2>/dev/null || true
 
+# Create uploads directory for Railway Volume mount
+RUN mkdir -p /data/uploads
+
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"

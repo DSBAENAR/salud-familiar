@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
-import { put } from "@vercel/blob";
 import path from "path";
 import { writeFile, mkdir } from "fs/promises";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
+import { UPLOADS_DIR } from "@/lib/uploads";
 
 const PACIENTE_ID = 1;
 
@@ -61,30 +61,15 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const ext = path.extname(file.name) || ".pdf";
     const safeName = sanitize(path.basename(file.name, ext));
-    const blobPath = `uploads/${sanitize(especialidad)}/${tipo}/${timestamp}_${safeName}${ext}`;
 
-    let rutaArchivo: string;
+    const dirPath = path.join(UPLOADS_DIR, sanitize(especialidad), tipo);
+    await mkdir(dirPath, { recursive: true });
+    const fileName = `${timestamp}_${safeName}${ext}`;
+    const filePath = path.join(dirPath, fileName);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await writeFile(filePath, buffer);
 
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
-      // Production: use Vercel Blob
-      const blob = await put(blobPath, file, { access: "public" });
-      rutaArchivo = blob.url;
-    } else {
-      // Local development: save to filesystem
-      const dirPath = path.join(
-        process.cwd(),
-        "public",
-        "uploads",
-        sanitize(especialidad),
-        tipo
-      );
-      await mkdir(dirPath, { recursive: true });
-      const fileName = `${timestamp}_${safeName}${ext}`;
-      const filePath = path.join(dirPath, fileName);
-      const buffer = Buffer.from(await file.arrayBuffer());
-      await writeFile(filePath, buffer);
-      rutaArchivo = `/uploads/${sanitize(especialidad)}/${tipo}/${fileName}`;
-    }
+    const rutaArchivo = `/api/uploads/${sanitize(especialidad)}/${tipo}/${fileName}`;
 
     const [nuevo] = await db
       .insert(schema.documentos)
