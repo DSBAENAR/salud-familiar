@@ -28,12 +28,12 @@ import puppeteer from 'puppeteer';
   if (page.url().includes('servicelogin')) {
     await page.waitForSelector('#suraName', { timeout: 10000 });
     await page.select('#ctl00_ContentMain_suraType', 'C');
-    await page.type('#suraName', 'REDACTED_DOC_NUMBER', { delay: 30 });
-    await page.evaluate(() => {
-      document.getElementById('suraPassword').value = 'REDACTED_PASSWORD';
-      window.username = 'CREDACTED_DOC_NUMBER'; window.password = 'REDACTED_PASSWORD';
+    await page.type('#suraName', process.env.SURA_NUM_DOC, { delay: 30 });
+    await page.evaluate((numDoc, pwd) => {
+      document.getElementById('suraPassword').value = pwd;
+      window.username = 'C' + numDoc; window.password = pwd;
       login.submit();
-    });
+    }, process.env.SURA_NUM_DOC, process.env.SURA_PASSWORD);
     await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
     await new Promise(r => setTimeout(r, 10000));
   }
