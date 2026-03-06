@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { db, schema } from "@/lib/db";
+import { auth } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 const PACIENTE_ID = 1;
 
@@ -43,6 +45,11 @@ export async function POST(request: NextRequest) {
   if (tmpHistoria) {
     args.push("--historia", tmpHistoria);
   }
+
+  // Get user for activity logging
+  const session = await auth();
+  const userEmail = session?.user?.email || "desconocido";
+  logActivity(userEmail, "autorizacion_iniciada", procedimiento, { tipo });
 
   // Stream progress via SSE
   const encoder = new TextEncoder();
@@ -118,10 +125,13 @@ export async function POST(request: NextRequest) {
             console.error("Error guardando en DB:", e);
           }
 
+          await logActivity(userEmail, "autorizacion_exitosa", procedimiento, { numero, mensaje });
           send("done", { success: true, numero, mensaje });
         } else if (code !== 0 || errorMatch) {
+          await logActivity(userEmail, "autorizacion_fallida", procedimiento, { error: errorMatch?.[1] });
           send("done", { success: false, error: errorMatch?.[1] || "El proceso falló" });
         } else {
+          await logActivity(userEmail, "autorizacion_fallida", procedimiento, { error: "Sin respuesta" });
           send("done", { success: false, error: "No se recibió respuesta del portal" });
         }
 

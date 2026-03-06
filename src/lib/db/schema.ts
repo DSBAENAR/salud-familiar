@@ -103,6 +103,15 @@ export const ordenes = pgTable("ordenes", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const actividad = pgTable("actividad", {
+  id: serial("id").primaryKey(),
+  usuario: text("usuario").notNull(),
+  accion: text("accion").notNull(),
+  detalle: text("detalle"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const tareas = pgTable("tareas", {
   id: serial("id").primaryKey(),
   pacienteId: integer("paciente_id")

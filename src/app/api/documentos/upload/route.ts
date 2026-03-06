@@ -4,6 +4,8 @@ import { eq } from "drizzle-orm";
 import { put } from "@vercel/blob";
 import path from "path";
 import { writeFile, mkdir } from "fs/promises";
+import { auth } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 const PACIENTE_ID = 1;
 
@@ -96,6 +98,14 @@ export async function POST(request: NextRequest) {
         encriptado: false,
       })
       .returning();
+
+    const session = await auth();
+    await logActivity(
+      session?.user?.email || "desconocido",
+      "documento_subido",
+      `${tipo} - ${especialidad}`,
+      { nombre: file.name, documentoId: nuevo.id }
+    );
 
     return NextResponse.json(nuevo, { status: 201 });
   } catch (error) {

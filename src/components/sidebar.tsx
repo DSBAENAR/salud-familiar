@@ -11,6 +11,7 @@ import {
   Mail,
   HeartPulse,
   LogOut,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut, useSession } from "next-auth/react";
@@ -23,6 +24,8 @@ const navItems = [
   { label: "Ordenes", href: "/ordenes", icon: ClipboardList },
   { label: "Correos", href: "/correos", icon: Mail },
 ];
+
+const ADMIN_EMAIL = "dsbaenar@gmail.com";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -78,6 +81,30 @@ export function Sidebar() {
             </Link>
           );
         })}
+        {session?.user?.email === ADMIN_EMAIL && (
+          <>
+            <div className="mx-3 my-2 h-px bg-slate-700/60" />
+            <Link
+              href="/actividad"
+              className={cn(
+                "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                pathname === "/actividad"
+                  ? "bg-sky-500/15 text-sky-400"
+                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+              )}
+            >
+              <Activity
+                className={cn(
+                  "size-[18px] transition-colors duration-200",
+                  pathname === "/actividad"
+                    ? "text-sky-400"
+                    : "text-slate-500 group-hover:text-slate-300"
+                )}
+              />
+              Actividad
+            </Link>
+          </>
+        )}
       </nav>
 
       {/* User + Footer */}

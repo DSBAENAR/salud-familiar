@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import { auth } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 const PACIENTE_ID = 1;
 
@@ -56,6 +58,13 @@ export async function POST(request: NextRequest) {
         emailId: emailId ?? null,
       })
       .returning();
+
+    const session = await auth();
+    await logActivity(
+      session?.user?.email || "desconocido",
+      "autorizacion_creada",
+      `${especialidad} (${tipo})`
+    );
 
     return NextResponse.json(nueva, { status: 201 });
   } catch (error) {

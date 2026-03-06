@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { logActivity } from "@/lib/activity";
 
 const allowedEmails = (process.env.ALLOWED_EMAILS || "")
   .split(",")
@@ -21,6 +22,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     session({ session }) {
       return session;
+    },
+  },
+  events: {
+    async signIn({ user }) {
+      await logActivity(
+        user.email || "desconocido",
+        "inicio_sesion",
+        user.name || undefined
+      );
+    },
+    async signOut(message) {
+      const token = "token" in message ? (message.token as { email?: string; name?: string }) : undefined;
+      const session = "session" in message ? (message.session as { user?: { email?: string; name?: string } } | undefined) : undefined;
+      const email = token?.email || session?.user?.email;
+      const name = token?.name || session?.user?.name;
+      await logActivity(email || "desconocido", "cierre_sesion", name || undefined);
     },
   },
   pages: {
