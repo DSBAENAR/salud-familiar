@@ -40,10 +40,25 @@ export default async function DocumentosPage() {
     .from(schema.documentos)
     .where(eq(schema.documentos.pacienteId, 1));
 
-  const docsPorEspecialidad = especialidades.map((esp) => ({
-    ...esp,
-    documentos: documentos.filter((d) => d.especialidad === esp.nombre),
-  }));
+  // Build folders from registered specialties
+  const espNames = new Set(especialidades.map((e) => e.nombre));
+  const docsPorEspecialidad: { id: number | string; nombre: string; documentos: typeof documentos }[] =
+    especialidades.map((esp) => ({
+      ...esp,
+      documentos: documentos.filter((d) => d.especialidad === esp.nombre),
+    }));
+
+  // Add folders for document specialties not in the especialidades table (e.g. "General")
+  const extraEsps = [...new Set(documentos.map((d) => d.especialidad))].filter(
+    (name) => !espNames.has(name)
+  );
+  for (const name of extraEsps) {
+    docsPorEspecialidad.push({
+      id: `extra-${name}`,
+      nombre: name,
+      documentos: documentos.filter((d) => d.especialidad === name),
+    });
+  }
 
   const categorias = ["cita", "historia_clinica", "autorizacion", "orden", "examen", "medicamento"];
 
@@ -59,7 +74,7 @@ export default async function DocumentosPage() {
         <NuevaEspecialidad />
       </div>
 
-      {especialidades.length === 0 ? (
+      {docsPorEspecialidad.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3" />

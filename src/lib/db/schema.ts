@@ -36,6 +36,7 @@ export const autorizaciones = pgTable("autorizaciones", {
   tipo: text("tipo").notNull(), // consulta, procedimiento, examen
   estado: text("estado").notNull().default("pendiente"),
   fechaAprobacion: text("fecha_aprobacion"),
+  observaciones: text("observaciones"),
   emailId: text("email_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -112,6 +113,16 @@ export const actividad = pgTable("actividad", {
   detalle: text("detalle"),
   metadata: text("metadata"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const citasDocumentos = pgTable("citas_documentos", {
+  id: serial("id").primaryKey(),
+  citaId: integer("cita_id")
+    .notNull()
+    .references(() => citas.id, { onDelete: "cascade" }),
+  documentoId: integer("documento_id")
+    .notNull()
+    .references(() => documentos.id, { onDelete: "cascade" }),
 });
 
 export const tareas = pgTable("tareas", {

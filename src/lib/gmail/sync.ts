@@ -5,6 +5,7 @@ import {
   parseCitaEmail,
   parseCancelacionEmail,
   parseAutorizacionEmail,
+  parseRespuestaSolicitud,
   parseDocumentosEmail,
   type ParsedEmail,
 } from "./parser";
@@ -199,6 +200,35 @@ export async function syncGmailEmails(): Promise<SyncResult> {
           emailId,
           type: "autorizacion_aprobada",
           summary: `Autorizacion por clasificar${parsed.numero ? ` #${parsed.numero}` : ""}${autFiles.length > 0 ? ` (${autFiles.length} adjunto(s)${autDecrypted > 0 ? ", desencriptado(s)" : ""})` : ""}`,
+        });
+      } else if (emailType === "respuesta_solicitud") {
+        const parsed = parseRespuestaSolicitud(body, subject);
+        const nuevoEstado = parsed.aprobada ? "aprobada" : "rechazada";
+
+        if (parsed.numero) {
+          // Find matching authorization by numero
+          const matchingAuts = await db
+            .select()
+            .from(schema.autorizaciones)
+            .where(eq(schema.autorizaciones.pacienteId, 1));
+
+          const match = matchingAuts.find((a) => a.numero === parsed.numero);
+          if (match) {
+            await db
+              .update(schema.autorizaciones)
+              .set({
+                estado: nuevoEstado,
+                observaciones: parsed.motivo || null,
+              })
+              .where(eq(schema.autorizaciones.id, match.id));
+          }
+        }
+
+        result.processed++;
+        result.details.push({
+          emailId,
+          type: "respuesta_solicitud",
+          summary: `Solicitud #${parsed.numero || "?"} → ${nuevoEstado}`,
         });
       } else if (emailType === "documentos_salud") {
         const parsed = parseDocumentosEmail(body, attachments);

@@ -139,8 +139,13 @@ export default async function AutorizacionesPage() {
                       </p>
                       {aut.fechaAprobacion && (
                         <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Calendar className="h-3 w-3" /> Aprobada: {aut.fechaAprobacion}
+                          <Calendar className="h-3 w-3" /> {aut.estado === "rechazada" ? "Fecha" : "Aprobada"}: {aut.fechaAprobacion}
                         </p>
+                      )}
+                      {aut.observaciones && (
+                        <div className={`mt-2 rounded-md p-2.5 text-sm ${aut.estado === "rechazada" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+                          {aut.observaciones}
+                        </div>
                       )}
                     </div>
                   </div>

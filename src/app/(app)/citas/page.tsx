@@ -1,5 +1,5 @@
 import { db, schema } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
   Calendar,
   Clock,
@@ -8,11 +8,13 @@ import {
   Plus,
   ExternalLink,
   FileText,
+  Paperclip,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { EditarCita } from "@/components/editar-cita";
+import { EliminarCita } from "@/components/eliminar-cita";
 
 const estadoStyles: Record<string, string> = {
   pendiente: "bg-amber-100 text-amber-800",
@@ -40,6 +42,34 @@ export default async function CitasPage() {
     .from(schema.citas)
     .where(eq(schema.citas.pacienteId, 1))
     .orderBy(schema.citas.fecha);
+
+  // Load linked documents for all citas
+  const citaIds = citas.map((c) => c.id);
+  const allLinks = citaIds.length > 0
+    ? await db
+        .select()
+        .from(schema.citasDocumentos)
+        .where(inArray(schema.citasDocumentos.citaId, citaIds))
+    : [];
+
+  const docIds = [...new Set(allLinks.map((l) => l.documentoId))];
+  const allDocs = docIds.length > 0
+    ? await db
+        .select()
+        .from(schema.documentos)
+        .where(inArray(schema.documentos.id, docIds))
+    : [];
+
+  const docsMap = new Map(allDocs.map((d) => [d.id, d]));
+  const docsPorCita = new Map<number, typeof allDocs>();
+  for (const link of allLinks) {
+    const doc = docsMap.get(link.documentoId);
+    if (doc) {
+      const arr = docsPorCita.get(link.citaId) || [];
+      arr.push(doc);
+      docsPorCita.set(link.citaId, arr);
+    }
+  }
 
   const hoy = new Date().toISOString().split("T")[0];
   const proximas = citas.filter(
@@ -75,7 +105,7 @@ export default async function CitasPage() {
       ) : (
         <div className="space-y-3">
           {proximas.map((cita) => (
-            <CitaCard key={cita.id} cita={cita} />
+            <CitaCard key={cita.id} cita={cita} documentos={docsPorCita.get(cita.id) || []} />
           ))}
         </div>
       )}
@@ -85,7 +115,7 @@ export default async function CitasPage() {
           <h2 className="text-xl font-semibold mt-8">Historial</h2>
           <div className="space-y-3">
             {pasadas.map((cita) => (
-              <CitaCard key={cita.id} cita={cita} past />
+              <CitaCard key={cita.id} cita={cita} documentos={docsPorCita.get(cita.id) || []} past />
             ))}
           </div>
         </>
@@ -96,9 +126,11 @@ export default async function CitasPage() {
 
 function CitaCard({
   cita,
+  documentos,
   past,
 }: {
   cita: typeof schema.citas.$inferSelect;
+  documentos: typeof schema.documentos.$inferSelect[];
   past?: boolean;
 }) {
   const meses = [
@@ -169,31 +201,54 @@ function CitaCard({
                   href={mapsUrl(cita.direccion)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline ml-6"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:underline ml-6"
                 >
-                  <ExternalLink className="h-3 w-3" />
+                  <ExternalLink className="h-4 w-4" />
                   {cita.direccion}
                 </a>
               )}
             </div>
             {cita.notas && (
-              <p className="text-sm text-muted-foreground mt-2 italic">
+              <p className="text-sm text-muted-foreground mt-3 italic">
                 {cita.notas}
               </p>
             )}
             {cita.observaciones && (
-              <div className="mt-2 rounded-md bg-blue-50 p-2.5">
-                <p className="text-xs font-medium text-blue-800 flex items-center gap-1 mb-0.5">
-                  <FileText className="h-3 w-3" /> Observaciones
+              <div className="mt-3 rounded-md bg-blue-50 p-3">
+                <p className="text-sm font-semibold text-blue-800 flex items-center gap-1.5 mb-1">
+                  <FileText className="h-4 w-4" /> Observaciones
                 </p>
-                <p className="text-xs text-blue-700 whitespace-pre-line">
+                <p className="text-sm text-blue-700 whitespace-pre-line">
                   {cita.observaciones}
                 </p>
               </div>
             )}
+            {documentos.length > 0 && (
+              <div className="mt-3 rounded-md bg-green-50 p-3">
+                <p className="text-sm font-semibold text-green-800 flex items-center gap-1.5 mb-2">
+                  <Paperclip className="h-4 w-4" /> Documentos para llevar ({documentos.length})
+                </p>
+                <div className="space-y-1">
+                  {documentos.map((doc) => (
+                    <a
+                      key={doc.id}
+                      href={doc.rutaArchivo}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-green-700 hover:text-green-900 hover:underline"
+                    >
+                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{doc.nombre}</span>
+                      <ExternalLink className="h-3 w-3 shrink-0 opacity-50" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center gap-1">
             <EditarCita cita={cita} />
+            <EliminarCita id={cita.id} especialidad={cita.especialidad} />
           </div>
         </div>
       </CardContent>

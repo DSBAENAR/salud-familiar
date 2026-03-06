@@ -2,6 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const citaId = parseInt(id, 10);
+    if (isNaN(citaId)) {
+      return NextResponse.json({ error: "ID invalido" }, { status: 400 });
+    }
+
+    const [cita] = await db
+      .select()
+      .from(schema.citas)
+      .where(eq(schema.citas.id, citaId))
+      .limit(1);
+
+    if (!cita) {
+      return NextResponse.json({ error: "Cita no encontrada" }, { status: 404 });
+    }
+
+    await db.delete(schema.citas).where(eq(schema.citas.id, citaId));
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("[DELETE /api/citas]", error);
+    return NextResponse.json({ error: "Error al eliminar la cita" }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

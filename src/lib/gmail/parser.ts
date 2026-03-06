@@ -1,4 +1,4 @@
-export type EmailType = "cita_confirmada" | "cita_cancelada" | "autorizacion_aprobada" | "documentos_salud" | "desconocido";
+export type EmailType = "cita_confirmada" | "cita_cancelada" | "autorizacion_aprobada" | "respuesta_solicitud" | "documentos_salud" | "desconocido";
 
 export interface ParsedCita {
   type: "cita_confirmada";
@@ -141,6 +141,14 @@ export function classifyEmail(subject: string, from: string, body: string = ""):
     return "autorizacion_aprobada";
   }
 
+  // Gestion Solicitud: respuesta a solicitudes de autorizacion (tramitesaunclic@epssura)
+  if (
+    subjectLower.includes("gestion solicitud") ||
+    (subjectLower.includes("solicitud") && subjectLower.match(/solicitud\s*#?\d+/))
+  ) {
+    return "respuesta_solicitud";
+  }
+
   // Documentos de salud: "Te compartimos" + "documentos de salud"
   if (
     subjectLower.includes("te compartimos") ||
@@ -262,9 +270,10 @@ export function parseAutorizacionEmail(body: string): ParsedAutorizacion {
     especialidad = espMatch[1].replace(/^\*\s*/, "").replace(/\s*\*$/, "").trim();
   }
 
-  // Extract authorization number from subject or body
+  // Extract authorization/solicitud number from subject or body
   let numero = "";
-  const numMatch = text.match(/[Aa]utorizaci[oó]n\s+(\d[\d-]+)/);
+  const numMatch = text.match(/[Aa]utorizaci[oó]n\s+(\d[\d-]+)/) ||
+    text.match(/[Ss]olicitud\s*#?\s*(\d+)/);
   if (numMatch) numero = numMatch[1];
 
   const fecha = normalizeDate(extractField(text, "Fecha"));
@@ -290,6 +299,42 @@ export function parseAutorizacionEmail(body: string): ParsedAutorizacion {
     lugar,
     paciente,
   };
+}
+
+export function parseRespuestaSolicitud(body: string, subject: string): {
+  numero: string;
+  aprobada: boolean;
+  motivo: string;
+} {
+  const text = cleanHtml(body);
+  const textLower = text.toLowerCase();
+
+  // Extract solicitud number from subject or body
+  let numero = "";
+  const numFromSubject = subject.match(/[Ss]olicitud\s*#?\s*(\d+)/);
+  const numFromBody = text.match(/[Ss]olicitud\s*#?\s*(\d+)/);
+  if (numFromSubject) numero = numFromSubject[1];
+  else if (numFromBody) numero = numFromBody[1];
+
+  // Check for approval keywords
+  const approvalKeywords = [
+    "exitoso", "exitosamente", "exitosa",
+    "aprobad",
+    "autorizada", "autorizado",
+    "ha sido gestionada exitosamente",
+    "fue gestionada exitosamente",
+  ];
+
+  const aprobada = approvalKeywords.some((kw) => textLower.includes(kw));
+
+  // Extract the reason/message from the body — include "Atendiendo a su solicitud..."
+  let motivo = "";
+  const match = text.match(/(Atendiendo a su solicitud[\s\S]*?)(?:Recuerda actualizar|En EPS SURA cuidarte)/i);
+  if (match) {
+    motivo = match[1].replace(/\n+/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  return { numero, aprobada, motivo };
 }
 
 export function parseDocumentosEmail(
