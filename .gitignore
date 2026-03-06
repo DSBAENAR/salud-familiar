@@ -51,4 +51,6 @@ gmail-tokens.json
 # uploaded files
 public/uploads/
 
-/scripts/*
+# scripts temp files (keep .mjs scripts in git)
+/scripts/*.pdf
+/scripts/*.png
