@@ -13,9 +13,15 @@ export async function GET(request: NextRequest) {
     const { tokens } = await oauth2Client.getToken(code);
     await saveTokens(tokens);
 
-    return NextResponse.redirect(new URL("/correos?connected=true", request.url));
+    const base = request.headers.get("x-forwarded-host")
+      ? `https://${request.headers.get("x-forwarded-host")}`
+      : request.nextUrl.origin;
+    return NextResponse.redirect(new URL("/correos?connected=true", base));
   } catch (error) {
     console.error("[Gmail Callback]", error);
-    return NextResponse.redirect(new URL("/correos?error=auth_failed", request.url));
+    const base = request.headers.get("x-forwarded-host")
+      ? `https://${request.headers.get("x-forwarded-host")}`
+      : request.nextUrl.origin;
+    return NextResponse.redirect(new URL("/correos?error=auth_failed", base));
   }
 }
