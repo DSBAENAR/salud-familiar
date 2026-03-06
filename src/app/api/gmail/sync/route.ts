@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/gmail/auth";
 import { syncGmailEmails } from "@/lib/gmail/sync";
 import { db, schema } from "@/lib/db";
-import { isNotNull } from "drizzle-orm";
+import { isNotNull, sql } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   if (!isAuthenticated()) {
@@ -18,10 +18,15 @@ export async function POST(request: NextRequest) {
 
     if (force) {
       // Delete all records created by email sync (those with emailId set)
-      // Order matters due to foreign key constraints
+      // Order matters due to foreign key constraints:
+      // tareas -> ordenes, tareas -> autorizaciones, citas -> autorizaciones
+      await db.delete(schema.tareas).where(
+        sql`${schema.tareas.ordenId} IN (SELECT id FROM ordenes WHERE email_id IS NOT NULL)
+            OR ${schema.tareas.autorizacionId} IN (SELECT id FROM autorizaciones WHERE email_id IS NOT NULL)`
+      );
       await db.delete(schema.documentos).where(isNotNull(schema.documentos.emailId));
-      await db.delete(schema.ordenes).where(isNotNull(schema.ordenes.emailId));
       await db.delete(schema.citas).where(isNotNull(schema.citas.emailId));
+      await db.delete(schema.ordenes).where(isNotNull(schema.ordenes.emailId));
       await db.delete(schema.autorizaciones).where(isNotNull(schema.autorizaciones.emailId));
       await db.delete(schema.emailsProcesados);
     }
