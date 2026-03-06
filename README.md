@@ -231,7 +231,7 @@ emailsProcesados   (deduplicacion de correos)
 
 ## Contexto
 
-En Colombia, las EPS requieren autorizaciones previas para casi todo: consultas con especialistas, examenes, procedimientos, medicamentos. El flujo es:
+En Colombia, las EPS requieren autorizaciones previas para casi todo: consultas con especialistas, examenes, procedimientos, medicamentos. El flujo es (Al menos en Sura):
 
 1. Medico general → orden/formula
 2. Entrar al portal de la EPS → formulario + captcha + adjuntos
