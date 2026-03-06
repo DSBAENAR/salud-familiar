@@ -46,7 +46,7 @@ export async function syncGmailEmails(): Promise<SyncResult> {
   };
 
   // Search for emails from Sura domains
-  const query = "from:(sura.com.co OR epssura.com OR segurossura.com.co) newer_than:30d";
+  const query = "from:(sura.com.co OR epssura.com OR segurossura.com.co) newer_than:1y";
 
   const listResponse = await gmail.users.messages.list({
     userId: "me",
