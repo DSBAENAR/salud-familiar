@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { SubirDocumento } from "@/components/subir-documento";
+import { EliminarDocumento } from "@/components/eliminar-documento";
+import { ReclasificarDocumento } from "@/components/reclasificar-documento";
 
 const tipoLabels: Record<string, string> = {
   historia_clinica: "Historia clinica",
@@ -92,16 +94,15 @@ export default async function EspecialidadDocumentosPage({
               </h3>
               <div className="space-y-2">
                 {grupo.docs.map((doc) => (
-                  <a
-                    key={doc.id}
-                    href={doc.rutaArchivo}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block"
-                  >
-                    <Card className="hover:shadow-md transition-shadow hover:border-blue-200">
-                      <CardContent className="py-3">
-                        <div className="flex items-center gap-4">
+                  <Card key={doc.id} className="hover:shadow-md transition-shadow hover:border-blue-200">
+                    <CardContent className="py-3">
+                      <div className="flex items-center gap-4">
+                        <a
+                          href={doc.rutaArchivo}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-4 flex-1 min-w-0"
+                        >
                           <div className={`flex items-center justify-center rounded-lg p-2.5 ${grupo.style}`}>
                             <FileText className="h-5 w-5" />
                           </div>
@@ -129,10 +130,17 @@ export default async function EspecialidadDocumentosPage({
                             </p>
                           </div>
                           <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </a>
+                        </a>
+                        <ReclasificarDocumento
+                          id={doc.id}
+                          nombre={doc.nombre}
+                          especialidadActual={nombreEspecialidad}
+                          tipoActual={doc.tipo}
+                        />
+                        <EliminarDocumento id={doc.id} nombre={doc.nombre} />
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             </div>
