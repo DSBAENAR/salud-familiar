@@ -14,9 +14,14 @@ const SURA_API = 'https://portaleps.epssura.com/TramitesUnClickNet/api';
 const SURA_PORTAL = 'https://portaleps.epssura.com/ServiciosUnClick/';
 
 const TIPO_DOC = 'C';
-const NUM_DOC = 'REDACTED_DOC_NUMBER';
-const FECHA_NAC = 'REDACTED_DATE';
-const PASSWORD = 'REDACTED_PASSWORD';
+const NUM_DOC = process.env.SURA_NUM_DOC;
+const FECHA_NAC = process.env.SURA_FECHA_NAC || '';
+const PASSWORD = process.env.SURA_PASSWORD;
+
+if (!NUM_DOC || !PASSWORD) {
+  console.error('ERROR: SURA_NUM_DOC y SURA_PASSWORD son requeridos como variables de entorno');
+  process.exit(1);
+}
 
 async function getToken() {
   const res = await fetch(SURA_TOKEN_URL, {

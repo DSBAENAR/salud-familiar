@@ -28,11 +28,16 @@ dotenv.config(); // fallback to .env
 puppeteerExtra.use(StealthPlugin());
 
 const SURA_PORTAL = 'https://portaleps.epssura.com/ServiciosUnClick/';
-const NUM_DOC = process.env.SURA_NUM_DOC || 'REDACTED_DOC_NUMBER';
-const PASSWORD = process.env.SURA_PASSWORD || 'REDACTED_PASSWORD';
-const CORREO_DEFAULT = process.env.SURA_CORREO || 'dsbaenar@gmail.com';
-const CELULAR_DEFAULT = process.env.SURA_CELULAR || '3001234567';
-const TELEFONO_DEFAULT = process.env.SURA_TELEFONO || '6017430450';
+const NUM_DOC = process.env.SURA_NUM_DOC;
+const PASSWORD = process.env.SURA_PASSWORD;
+const CORREO_DEFAULT = process.env.SURA_CORREO || '';
+const CELULAR_DEFAULT = process.env.SURA_CELULAR || '';
+const TELEFONO_DEFAULT = process.env.SURA_TELEFONO || '';
+
+if (!NUM_DOC || !PASSWORD) {
+  console.error('ERROR: SURA_NUM_DOC y SURA_PASSWORD son requeridos como variables de entorno');
+  process.exit(1);
+}
 
 const { values: args } = parseArgs({
   options: {
