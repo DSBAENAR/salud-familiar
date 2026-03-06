@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Pencil, Loader2 } from "lucide-react";
+import { SelectorDocumentos } from "@/components/selector-documentos";
 
 interface Cita {
   id: number;
@@ -46,8 +47,25 @@ export function EditarCita({ cita }: { cita: Cita }) {
   const [lugar, setLugar] = useState(cita.lugar || "");
   const [direccion, setDireccion] = useState(cita.direccion || "");
   const [estado, setEstado] = useState(cita.estado);
-  const [notas, setNotas] = useState(cita.notas || "");
   const [observaciones, setObservaciones] = useState(cita.observaciones || "");
+
+  const [allDocs, setAllDocs] = useState<{ id: number; nombre: string; especialidad: string; tipo: string }[]>([]);
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<number>>(new Set());
+  const [loadingDocs, setLoadingDocs] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoadingDocs(true);
+    Promise.all([
+      fetch("/api/documentos").then((r) => r.json()),
+      fetch(`/api/citas/${cita.id}/documentos`).then((r) => r.json()),
+    ])
+      .then(([docs, linked]) => {
+        setAllDocs(docs);
+        setSelectedDocIds(new Set((linked as { id: number }[]).map((d) => d.id)));
+      })
+      .finally(() => setLoadingDocs(false));
+  }, [open, cita.id]);
 
   async function handleSave() {
     setSaving(true);
@@ -62,12 +80,16 @@ export function EditarCita({ cita }: { cita: Cita }) {
           lugar: lugar || null,
           direccion: direccion || null,
           estado,
-          notas: notas || null,
           observaciones: observaciones || null,
         }),
       });
 
       if (res.ok) {
+        await fetch(`/api/citas/${cita.id}/documentos`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ documentoIds: [...selectedDocIds] }),
+        });
         setOpen(false);
         router.refresh();
       }
@@ -166,17 +188,6 @@ export function EditarCita({ cita }: { cita: Cita }) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notas">Notas</Label>
-            <Textarea
-              id="notas"
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
-              placeholder="Notas previas a la cita (preparacion, ayuno, etc.)"
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="observaciones">Observaciones</Label>
             <Textarea
               id="observaciones"
@@ -185,6 +196,19 @@ export function EditarCita({ cita }: { cita: Cita }) {
               placeholder="Observaciones despues de la cita (diagnostico, indicaciones, etc.)"
               rows={3}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Documentos para llevar</Label>
+            {loadingDocs ? (
+              <p className="text-sm text-muted-foreground">Cargando...</p>
+            ) : (
+              <SelectorDocumentos
+                docs={allDocs}
+                selectedIds={selectedDocIds}
+                onConfirm={setSelectedDocIds}
+              />
+            )}
           </div>
         </div>
 
