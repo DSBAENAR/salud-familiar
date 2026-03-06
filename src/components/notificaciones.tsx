@@ -82,7 +82,7 @@ export function Notificaciones() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border bg-white shadow-xl z-50">
+        <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-80 rounded-lg border bg-white shadow-xl z-50">
           <div className="border-b px-4 py-3">
             <h3 className="font-semibold text-sm">Notificaciones</h3>
             <p className="text-xs text-muted-foreground">

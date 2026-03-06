@@ -59,52 +59,52 @@ export default async function Dashboard() {
   const autAprobadas = autorizaciones.filter((a) => a.estado === "aprobada");
 
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="space-y-6 lg:space-y-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <Card className="border-l-4 border-l-blue-500">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Citas proximas</p>
-                <p className="text-3xl font-bold">{citasProximas.length}</p>
+          <CardContent className="pt-4 lg:pt-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs lg:text-sm text-muted-foreground truncate">Citas proximas</p>
+                <p className="text-2xl lg:text-3xl font-bold">{citasProximas.length}</p>
               </div>
-              <Calendar className="h-10 w-10 text-blue-500 opacity-80" />
+              <Calendar className="h-8 w-8 lg:h-10 lg:w-10 text-blue-500 opacity-80" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-amber-500">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Autorizaciones pendientes</p>
-                <p className="text-3xl font-bold">{autPendientes.length}</p>
+          <CardContent className="pt-4 lg:pt-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs lg:text-sm text-muted-foreground truncate">Autorizaciones pendientes</p>
+                <p className="text-2xl lg:text-3xl font-bold">{autPendientes.length}</p>
               </div>
-              <FileCheck className="h-10 w-10 text-amber-500 opacity-80" />
+              <FileCheck className="h-8 w-8 lg:h-10 lg:w-10 text-amber-500 opacity-80" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-purple-500">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Ordenes por tramitar</p>
-                <p className="text-3xl font-bold">{ordPendientes.length}</p>
+          <CardContent className="pt-4 lg:pt-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs lg:text-sm text-muted-foreground truncate">Ordenes por tramitar</p>
+                <p className="text-2xl lg:text-3xl font-bold">{ordPendientes.length}</p>
               </div>
-              <ClipboardList className="h-10 w-10 text-purple-500 opacity-80" />
+              <ClipboardList className="h-8 w-8 lg:h-10 lg:w-10 text-purple-500 opacity-80" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-green-500">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Autorizaciones aprobadas</p>
-                <p className="text-3xl font-bold">{autAprobadas.length}</p>
+          <CardContent className="pt-4 lg:pt-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs lg:text-sm text-muted-foreground truncate">Autorizaciones aprobadas</p>
+                <p className="text-2xl lg:text-3xl font-bold">{autAprobadas.length}</p>
               </div>
-              <FileCheck className="h-10 w-10 text-green-500 opacity-80" />
+              <FileCheck className="h-8 w-8 lg:h-10 lg:w-10 text-green-500 opacity-80" />
             </div>
           </CardContent>
         </Card>
@@ -133,7 +133,7 @@ export default async function Dashboard() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-lg">Proximas citas</CardTitle>

@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
+import { SidebarProvider } from "@/components/sidebar-context";
 
 export default function AppLayout({
   children,
@@ -7,12 +8,14 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex flex-1 flex-col pl-64">
-        <Header />
-        <main className="flex-1 bg-gray-50 p-8">{children}</main>
+    <SidebarProvider>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <div className="flex flex-1 flex-col lg:pl-64">
+          <Header />
+          <main className="flex-1 bg-gray-50 p-4 lg:p-8">{children}</main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
