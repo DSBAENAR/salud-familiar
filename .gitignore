@@ -50,3 +50,5 @@ gmail-tokens.json
 
 # uploaded files
 public/uploads/
+
+/scripts/*
