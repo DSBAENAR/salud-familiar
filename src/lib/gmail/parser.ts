@@ -42,6 +42,7 @@ function cleanHtml(html: string): string {
     .replace(/<\/p>/gi, "\n")
     .replace(/<\/div>/gi, "\n")
     .replace(/<\/tr>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
     .replace(/<\/td>/gi, " ")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
@@ -121,11 +122,15 @@ export function classifyEmail(subject: string, from: string, body: string = ""):
     return "cita_cancelada";
   }
 
-  // Cita confirmada: "SURA te confirma" or "Cita MED.INTERNA"
+  // Cita confirmada: "SURA te confirma", "Cita MED.INTERNA", or IPS providers
   if (
     subjectLower.includes("te confirma") ||
     subjectLower.includes("cita fue agenda") ||
-    (subjectLower.includes("cita") && subjectLower.match(/\d{4}\/\d{2}\/\d{2}/))
+    subjectLower.includes("cita ha sido asignada") ||
+    (subjectLower.includes("cita") && subjectLower.match(/\d{4}\/\d{2}\/\d{2}/)) ||
+    // IPS providers: urobosque (cocoreservas.com), dinamicaips, etc.
+    (fromLower.includes("cocoreservas") && (subjectLower.includes("cita") || bodyLower.includes("cita ha sido asignada"))) ||
+    (fromLower.includes("dinamicaips") && (subjectLower.includes("cita") || bodyLower.includes("programación exitosa")))
   ) {
     return "cita_confirmada";
   }
@@ -160,42 +165,64 @@ export function classifyEmail(subject: string, from: string, body: string = ""):
   return "desconocido";
 }
 
-export function parseCitaEmail(body: string, subject: string): ParsedCita {
-  const text = cleanHtml(body);
+const espMap: Record<string, string> = {
+  "MEDINTERNA": "Medicina Interna",
+  "MED.INTERNA": "Medicina Interna",
+  "MED INTERNA": "Medicina Interna",
+  "HEMATOLOGIA": "Hematología",
+  "NEUMOLOGIA": "Neumología",
+  "UROLOGIA": "Urología",
+  "FISIATRIA": "Fisiatría",
+  "MEDICO": "Medicina General",
+  "MEDICO GENERAL": "Medicina General",
+  "MEDICINA": "Medicina General",
+  "ODONTOLOGIA": "Odontología",
+  "DERMATOLOGIA": "Dermatología",
+  "OFTALMOLOGIA": "Oftalmología",
+  "NEFROLOGIA": "Nefrología",
+  "CARDIOLOGIA": "Cardiología",
+  "PROCTOLOGIA": "Proctología",
+  "GASTROENTEROLOGIA": "Gastroenterología",
+  "LABORATORIO": "Laboratorio",
+  "TOMA DE MUESTRA LABORATORIO": "Laboratorio",
+  "TOMA DE MUESTRA": "Laboratorio",
+};
 
-  // Try to extract specialty from subject or body
+function detectEspecialidadFromServicio(servicio: string): string {
+  const s = servicio.toUpperCase();
+  for (const [key, value] of Object.entries(espMap)) {
+    if (s.includes(key)) return value;
+  }
+  return "";
+}
+
+export function parseCitaEmail(body: string, subject: string, from: string = ""): ParsedCita {
+  const text = cleanHtml(body);
+  const fromLower = from.toLowerCase();
+
+  // --- Ayudas Diagnósticas SURA (dinamicaips, etc.) ---
+  if (fromLower.includes("dinamicaips") || text.includes("Ayudas Diagnósticas") || text.includes("programación exitosa")) {
+    return parseCitaAyudasDiagnosticas(text);
+  }
+
+  // --- IPS providers (urobosque/cocoreservas, etc.) ---
+  if (fromLower.includes("cocoreservas") || text.includes("cita ha sido asignada")) {
+    return parseCitaIPS(text, subject);
+  }
+
+  // --- Sura format ---
   let especialidad = "";
-  // Match "cita para MED.INTERNA" or "Cita MEDICO" etc.
   const espMatch = subject.match(/cita\s+(?:para\s+)?([\w.]+)/i) || text.match(/cita\s+para\s+([\w.]+)/i);
   if (espMatch) {
     especialidad = espMatch[1].replace(/[.,;]/g, "").trim();
   }
-  // Map abbreviations to clean names
-  const espMap: Record<string, string> = {
-    "MEDINTERNA": "Medicina Interna",
-    "MED.INTERNA": "Medicina Interna",
-    "MED INTERNA": "Medicina Interna",
-    "HEMATOLOGIA": "Hematologia",
-    "NEUMOLOGIA": "Neumologia",
-    "UROLOGIA": "Urologia",
-    "FISIATRIA": "Fisiatria",
-    "MEDICO": "Medicina General",
-    "MEDICINA": "Medicina General",
-    "ODONTOLOGIA": "Odontologia",
-    "DERMATOLOGIA": "Dermatologia",
-    "OFTALMOLOGIA": "Oftalmologia",
-    "NEFROLOGIA": "Nefrologia",
-    "CARDIOLOGIA": "Cardiologia",
-  };
   especialidad = espMap[especialidad.toUpperCase()] || especialidad;
 
   const fecha = normalizeDate(extractField(text, "Fecha de la cita"));
   const hora = normalizeTime(extractField(text, "Hora de la cita"));
   const profesional = extractField(text, "Profesional a cargo");
 
-  // "Lugar para tu atención:" — extract carefully, the field name may get split
   let lugar = extractField(text, "Lugar para tu atenci");
-  // Clean up: may start with "ón:" or "n:" due to HTML split
   lugar = lugar.replace(/^[oó]n:\s*/i, "").trim();
 
   const paciente = extractField(text, "Nombre");
@@ -206,6 +233,88 @@ export function parseCitaEmail(body: string, subject: string): ParsedCita {
     fecha,
     hora,
     profesional,
+    lugar,
+    paciente,
+  };
+}
+
+function parseCitaIPS(text: string, _subject: string): ParsedCita {
+  // IPS format (urobosque/cocoreservas): fields separated by multiple spaces or newlines
+  // Normalize: collapse newlines + spaces into single spaces, then split by known field labels
+  const normalized = text
+    .replace(/\r?\n/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  function extractIPS(label: string): string {
+    const pattern = new RegExp(`${label}:?\\s*(.+?)(?=\\s+(?:Aseguradora|Servicio|Profesional|Tipo de Atenci|Fecha|Hora|Direcci|N[uú]mero de|Este es|Como llegar|$))`, "i");
+    const match = normalized.match(pattern);
+    return match ? match[1].trim() : "";
+  }
+
+  const servicio = extractIPS("Servicio");
+  const especialidad = detectEspecialidadFromServicio(servicio);
+
+  let fecha = extractIPS("Fecha");
+  if (fecha) fecha = normalizeDate(fecha);
+
+  let hora = extractIPS("Hora de la cita");
+  if (!hora) hora = extractIPS("Hora");
+  if (hora) hora = normalizeTime(hora);
+
+  const profesional = extractIPS("Profesional");
+  const paciente = extractIPS("Nombre");
+
+  let direccion = extractIPS("Direcci[oó]n");
+  direccion = direccion.replace(/^[oó]n:\s*/i, "").trim();
+
+  return {
+    type: "cita_confirmada",
+    especialidad: especialidad || servicio || "Sin especificar",
+    fecha,
+    hora,
+    profesional,
+    lugar: direccion,
+    paciente,
+  };
+}
+
+function parseCitaAyudasDiagnosticas(text: string): ParsedCita {
+  // Format: bullet list after "cita para:\nPACIENTE"
+  // • SERVICE NAME
+  // • YYYY/MM/DD
+  // • HH:MM:SS am/pm
+  // • LOCATION, Address
+  const pacienteMatch = text.match(/cita para:\s*\n?\s*(\w+)/i);
+  const paciente = pacienteMatch ? pacienteMatch[1] : "";
+
+  const lines = text.split("\n").map(l => l.replace(/^[\s•·\-*]+/, "").trim()).filter(Boolean);
+
+  let especialidad = "";
+  let fecha = "";
+  let hora = "";
+  let lugar = "";
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].match(/^\d{4}\/\d{1,2}\/\d{1,2}$/)) {
+      fecha = normalizeDate(lines[i]);
+      if (i > 0) especialidad = lines[i - 1];
+      if (i + 1 < lines.length && lines[i + 1].match(/\d{1,2}:\d{2}/)) {
+        hora = normalizeTime(lines[i + 1]);
+      }
+      if (i + 2 < lines.length) lugar = lines[i + 2];
+      break;
+    }
+  }
+
+  especialidad = detectEspecialidadFromServicio(especialidad) || especialidad;
+
+  return {
+    type: "cita_confirmada",
+    especialidad: especialidad || "Sin especificar",
+    fecha,
+    hora,
+    profesional: "",
     lugar,
     paciente,
   };
