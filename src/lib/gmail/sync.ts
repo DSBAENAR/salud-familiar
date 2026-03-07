@@ -15,6 +15,7 @@ import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import { UPLOADS_DIR } from "@/lib/uploads";
+import { extractDatosAutorizacion } from "@/lib/pdf/extract-contacto";
 
 function ensureUploadsDir(subdir: string) {
   const dir = path.join(UPLOADS_DIR, subdir);
@@ -46,16 +47,30 @@ export async function syncGmailEmails(): Promise<SyncResult> {
     details: [],
   };
 
-  // Search for emails from Sura domains
-  const query = "from:(sura.com.co OR epssura.com OR segurossura.com.co) newer_than:1y";
+  // Search for emails from Sura domains + known IPS providers
+  const queries = [
+    "from:(sura.com.co OR epssura.com OR segurossura.com.co) newer_than:1y",
+    "from:(cocoreservas.com OR dinamicaips.com.co) newer_than:1y",
+  ];
 
-  const listResponse = await gmail.users.messages.list({
-    userId: "me",
-    q: query,
-    maxResults: 50,
-  });
+  const messages: { id: string; threadId?: string }[] = [];
+  const seenIds = new Set<string>();
 
-  const messages = listResponse.data.messages || [];
+  for (const query of queries) {
+    const listResponse = await gmail.users.messages.list({
+      userId: "me",
+      q: query,
+      maxResults: 50,
+    });
+
+    for (const msg of listResponse.data.messages || []) {
+      if (msg.id && !seenIds.has(msg.id)) {
+        seenIds.add(msg.id);
+        messages.push({ id: msg.id, threadId: msg.threadId || undefined });
+      }
+    }
+  }
+
   result.total = messages.length;
 
   for (const msg of messages) {
@@ -129,7 +144,7 @@ export async function syncGmailEmails(): Promise<SyncResult> {
           summary: `Cita cancelada: ${parsed.especialidad}${parsed.fecha ? ` - ${parsed.fecha}` : ""}`,
         });
       } else if (emailType === "cita_confirmada") {
-        const parsed = parseCitaEmail(body, subject);
+        const parsed = parseCitaEmail(body, subject, from);
         await db.insert(schema.citas).values({
           pacienteId: 1,
           especialidad: parsed.especialidad,
@@ -137,6 +152,7 @@ export async function syncGmailEmails(): Promise<SyncResult> {
           fecha: parsed.fecha,
           hora: parsed.hora || null,
           lugar: parsed.lugar || null,
+          direccion: parsed.lugar || null,
           estado: "confirmada",
           emailId,
         });
@@ -153,14 +169,32 @@ export async function syncGmailEmails(): Promise<SyncResult> {
         });
       } else if (emailType === "autorizacion_aprobada") {
         const parsed = parseAutorizacionEmail(body);
-        // Save with "Por clasificar" — user will assign specialty manually
+
+        // Download and decrypt attachments first — we need the PDFs to extract contact info
+        const autFiles = await downloadAttachments(gmail, emailId, attachments, "Por_clasificar", "autorizacion");
+        const autDecrypted = autFiles.filter((f) => f.decrypted).length;
+
+        // Extract contact data from the first PDF attachment
+        let pdfData: Awaited<ReturnType<typeof extractDatosAutorizacion>> = null;
+        for (const file of autFiles) {
+          if (file.nombre.toLowerCase().endsWith(".pdf")) {
+            const fullPath = path.join(UPLOADS_DIR, `Por_clasificar/autorizacion/${file.nombre}`);
+            pdfData = await extractDatosAutorizacion(fullPath);
+            if (pdfData) break;
+          }
+        }
+
         await db.insert(schema.autorizaciones).values({
           pacienteId: 1,
           especialidad: "Por clasificar",
-          numero: parsed.numero || null,
-          tipo: "consulta",
+          numero: parsed.numero || pdfData?.autorizacionNumero || null,
+          tipo: pdfData?.tipoServicio || "consulta",
           estado: "aprobada",
           fechaAprobacion: parsed.fecha || emailDate,
+          telefonoContacto: pdfData?.telefonoContacto || null,
+          lugarAtencion: pdfData?.lugarAtencion || null,
+          vigencia: pdfData?.vigencia || null,
+          esWhatsapp: pdfData?.esWhatsapp || false,
           emailId,
         });
 
@@ -178,10 +212,6 @@ export async function syncGmailEmails(): Promise<SyncResult> {
           });
         }
 
-        // Download and decrypt attachments if any — save in temp folder until classified
-        const autFiles = await downloadAttachments(gmail, emailId, attachments, "Por_clasificar", "autorizacion");
-        const autDecrypted = autFiles.filter((f) => f.decrypted).length;
-
         // Save attachments as documents linked to this email
         for (const file of autFiles) {
           await db.insert(schema.documentos).values({
@@ -195,11 +225,15 @@ export async function syncGmailEmails(): Promise<SyncResult> {
           });
         }
 
+        const contactInfo = pdfData?.telefonoContacto
+          ? ` | Tel: ${pdfData.telefonoContacto} (${pdfData.esWhatsapp ? "WhatsApp" : "Llamar"})`
+          : "";
+
         result.processed++;
         result.details.push({
           emailId,
           type: "autorizacion_aprobada",
-          summary: `Autorizacion por clasificar${parsed.numero ? ` #${parsed.numero}` : ""}${autFiles.length > 0 ? ` (${autFiles.length} adjunto(s)${autDecrypted > 0 ? ", desencriptado(s)" : ""})` : ""}`,
+          summary: `Autorizacion por clasificar${parsed.numero ? ` #${parsed.numero}` : ""}${autFiles.length > 0 ? ` (${autFiles.length} adjunto(s)${autDecrypted > 0 ? ", desencriptado(s)" : ""})` : ""}${contactInfo}`,
         });
       } else if (emailType === "respuesta_solicitud") {
         const parsed = parseRespuestaSolicitud(body, subject);
