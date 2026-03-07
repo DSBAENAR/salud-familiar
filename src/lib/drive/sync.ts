@@ -95,23 +95,37 @@ export async function backupToDrive(): Promise<BackupResult> {
         folderCache[tipoKey] = await findOrCreateFolder(drive, doc.tipo, folderCache[espKey]);
       }
 
-      // Upload file
-      const fileRes = await drive.files.create({
-        requestBody: {
-          name: doc.nombre,
-          parents: [folderCache[tipoKey]],
-        },
-        media: {
-          mimeType: "application/pdf",
-          body: fs.createReadStream(filePath),
-        },
-        fields: "id",
+      // Check if file with same name already exists in Drive folder
+      const existingFiles = await drive.files.list({
+        q: `name='${doc.nombre.replace(/'/g, "\\'")}' and '${folderCache[tipoKey]}' in parents and trashed=false`,
+        fields: "files(id, name)",
       });
+
+      let driveFileId: string;
+
+      if (existingFiles.data.files && existingFiles.data.files.length > 0) {
+        // File already exists in Drive — reuse its ID, skip upload
+        driveFileId = existingFiles.data.files[0].id!;
+      } else {
+        // Upload file
+        const fileRes = await drive.files.create({
+          requestBody: {
+            name: doc.nombre,
+            parents: [folderCache[tipoKey]],
+          },
+          media: {
+            mimeType: "application/pdf",
+            body: fs.createReadStream(filePath),
+          },
+          fields: "id",
+        });
+        driveFileId = fileRes.data.id!;
+      }
 
       // Update document with Drive file ID
       await db
         .update(schema.documentos)
-        .set({ driveFileId: fileRes.data.id })
+        .set({ driveFileId })
         .where(eq(schema.documentos.id, doc.id));
 
       result.uploaded++;
