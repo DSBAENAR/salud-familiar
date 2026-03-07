@@ -37,6 +37,10 @@ export const autorizaciones = pgTable("autorizaciones", {
   estado: text("estado").notNull().default("pendiente"),
   fechaAprobacion: text("fecha_aprobacion"),
   observaciones: text("observaciones"),
+  telefonoContacto: text("telefono_contacto"),
+  lugarAtencion: text("lugar_atencion"),
+  vigencia: text("vigencia"),
+  esWhatsapp: boolean("es_whatsapp").notNull().default(false),
   emailId: text("email_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
