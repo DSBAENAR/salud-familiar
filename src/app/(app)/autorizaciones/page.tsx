@@ -1,6 +1,7 @@
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { FileCheck, Plus, Hash, Calendar } from "lucide-react";
+import { ContactoPrestador } from "@/components/contacto-prestador";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClasificarAutorizaciones } from "@/components/clasificar-autorizacion";
@@ -104,6 +105,15 @@ export default async function AutorizacionesPage() {
                           <Hash className="h-3 w-3" /> {aut.numero}
                         </p>
                       )}
+                      <ContactoPrestador
+                        telefono={aut.telefonoContacto}
+                        esWhatsapp={aut.esWhatsapp}
+                        lugarAtencion={aut.lugarAtencion}
+                        vigencia={aut.vigencia}
+                        especialidad={aut.especialidad}
+                        numero={aut.numero}
+                        tipo={aut.tipo}
+                      />
                       <Checklist autorizacionId={aut.id} />
                     </div>
                   </div>
@@ -146,6 +156,17 @@ export default async function AutorizacionesPage() {
                         <div className={`mt-2 rounded-md p-2.5 text-sm ${aut.estado === "rechazada" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
                           {aut.observaciones}
                         </div>
+                      )}
+                      {aut.estado === "aprobada" && (
+                        <ContactoPrestador
+                          telefono={aut.telefonoContacto}
+                          esWhatsapp={aut.esWhatsapp}
+                          lugarAtencion={aut.lugarAtencion}
+                          vigencia={aut.vigencia}
+                          especialidad={aut.especialidad}
+                          numero={aut.numero}
+                          tipo={aut.tipo}
+                        />
                       )}
                     </div>
                   </div>
