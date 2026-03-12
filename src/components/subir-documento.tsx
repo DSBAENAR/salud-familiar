@@ -57,14 +57,19 @@ export function SubirDocumento({ especialidades, especialidadInicial }: Props) {
       formData.append("especialidad", especialidad);
       formData.append("tipo", tipo);
 
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+
       const res = await fetch("/api/documentos/upload", {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Error al subir");
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || `Error al subir (${res.status})`);
         return;
       }
 
@@ -73,8 +78,10 @@ export function SubirDocumento({ especialidades, especialidadInicial }: Props) {
       setTipo("");
       if (!especialidadInicial) setEspecialidad("");
       router.refresh();
-    } catch {
-      setError("Error de conexion");
+    } catch (err) {
+      setError(err instanceof DOMException && err.name === "AbortError"
+        ? "Tiempo agotado. Intenta de nuevo."
+        : "Error de conexion. Verifica tu red.");
     } finally {
       setUploading(false);
     }
