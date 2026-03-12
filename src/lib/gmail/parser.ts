@@ -436,11 +436,19 @@ export function parseRespuestaSolicitud(body: string, subject: string): {
 
   const aprobada = approvalKeywords.some((kw) => textLower.includes(kw));
 
-  // Extract the reason/message from the body — include "Atendiendo a su solicitud..."
+  // Extract motivo: if not approved, grab the main message from the body
   let motivo = "";
-  const match = text.match(/(Atendiendo a su solicitud[\s\S]*?)(?:Recuerda actualizar|En EPS SURA cuidarte)/i);
-  if (match) {
-    motivo = match[1].replace(/\n+/g, " ").replace(/\s+/g, " ").trim();
+  if (!aprobada) {
+    // Strip greeting/header and footer — keep the core message
+    const stripped = text
+      .replace(/^[\s\S]*?(?:cordial saludo:?|ALVARO BAENA[^\n]*)/i, "")
+      .replace(/(?:Recuerda actualizar|En EPS SURA cuidarte|Descarga nuestra|Línea de atención|Suramericana nunca)[\s\S]*$/i, "")
+      .replace(/\n+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (stripped.length > 10) {
+      motivo = stripped.slice(0, 500);
+    }
   }
 
   return { numero, aprobada, motivo };

@@ -7,6 +7,13 @@ import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { UPLOADS_DIR } from "@/lib/uploads";
 
+export const config = {
+  api: { bodyParser: false },
+};
+
+// Allow up to 10MB uploads
+export const maxDuration = 60;
+
 const PACIENTE_ID = 1;
 
 export async function POST(request: NextRequest) {
