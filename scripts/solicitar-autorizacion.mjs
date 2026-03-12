@@ -300,27 +300,75 @@ async function run() {
     });
     console.log('  OK');
 
+    // Wait for form to settle after tipo change (re-renders upload components)
+    await delay(5000);
+
     // ── 7. Upload files ──
     console.log('[7/8] Subiendo archivos...');
+    await page.screenshot({ path: '/tmp/sura-pre-upload.png', fullPage: true });
+
     if (archivoFormula) {
-      await (await page.$('#formulaMedica')).uploadFile(archivoFormula);
-      await delay(5000);
-      const docId = await page.evaluate(() =>
-        angular.element(document.querySelector('[ng-controller="solicitudesCtrl"]')).scope().archivoFormulaMedica?.idDocument
-      );
-      console.log(docId ? `  OK fórmula: ${docId}` : '  WARN: fórmula no subió');
+      let formulaInput = await page.$('#formulaMedica');
+
+      if (!formulaInput) {
+        // Discover file inputs — "Remisión o fórmula médica" is typically the last one
+        const allFileInputs = await page.$$('input[type="file"]');
+        console.log(`  Descubiertos ${allFileInputs.length} inputs de archivo`);
+        if (allFileInputs.length > 0) {
+          formulaInput = allFileInputs[allFileInputs.length - 1];
+        }
+      }
+
+      if (formulaInput) {
+        await formulaInput.uploadFile(archivoFormula);
+        // Trigger change event for Angular directive
+        await page.evaluate((sel) => {
+          const input = sel ? document.getElementById(sel) : document.querySelectorAll('input[type="file"]')[document.querySelectorAll('input[type="file"]').length - 1];
+          if (input) {
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            angular.element(input).triggerHandler('change');
+          }
+        }, await page.evaluate(() => document.getElementById('formulaMedica') ? 'formulaMedica' : null));
+        await delay(8000);
+        const docId = await page.evaluate(() =>
+          angular.element(document.querySelector('[ng-controller="solicitudesCtrl"]')).scope().archivoFormulaMedica?.idDocument
+        );
+        console.log(docId ? `  OK fórmula: ${docId}` : '  WARN: fórmula no subió');
+      } else {
+        console.log('  WARN: No se encontró input para fórmula');
+      }
     }
     if (archivoHistoria) {
       const histSize = fs.statSync(archivoHistoria).size;
       if (histSize > 4096 * 1024) {
         console.log(`  WARN: historia (${(histSize / 1024).toFixed(0)} KB) excede límite de 4096 KB, omitiendo`);
       } else {
-        await (await page.$('#historiaClinica')).uploadFile(archivoHistoria);
-        await delay(5000);
-        const docId = await page.evaluate(() =>
-          angular.element(document.querySelector('[ng-controller="solicitudesCtrl"]')).scope().archivoHistoriaClinica?.idDocument
-        );
-        console.log(docId ? `  OK historia: ${docId}` : '  WARN: historia no subió');
+        let historiaInput = await page.$('#historiaClinica');
+
+        if (!historiaInput) {
+          const allFileInputs = await page.$$('input[type="file"]');
+          if (allFileInputs.length > 1) {
+            historiaInput = allFileInputs[0]; // first input is typically historia
+          }
+        }
+
+        if (historiaInput) {
+          await historiaInput.uploadFile(archivoHistoria);
+          await page.evaluate((sel) => {
+            const input = sel ? document.getElementById(sel) : document.querySelectorAll('input[type="file"]')[0];
+            if (input) {
+              input.dispatchEvent(new Event('change', { bubbles: true }));
+              angular.element(input).triggerHandler('change');
+            }
+          }, await page.evaluate(() => document.getElementById('historiaClinica') ? 'historiaClinica' : null));
+          await delay(8000);
+          const docId = await page.evaluate(() =>
+            angular.element(document.querySelector('[ng-controller="solicitudesCtrl"]')).scope().archivoHistoriaClinica?.idDocument
+          );
+          console.log(docId ? `  OK historia: ${docId}` : '  WARN: historia no subió');
+        } else {
+          console.log('  WARN: No se encontró input para historia');
+        }
       }
     }
 
@@ -329,17 +377,13 @@ async function run() {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 
     if (AUTO_MODE) {
-      // ── AUTO: Use 2captcha to solve reCAPTCHA, then submit ──
+      // ── AUTO: reCAPTCHA invisible + 2captcha ──
+      // The Sura portal uses vc-recaptcha (angular-recaptcha) with size="invisible".
+      // Flow: vcRecaptchaService.execute() → Google challenge → setResponse(token) → enviarSolicitud()
+      // With 2captcha plugin: solveRecaptchas() solves and injects the token, then we call setResponse().
       console.log('  Resolviendo reCAPTCHA con 2captcha...');
 
-      // Click "Enviar solicitud" to trigger reCAPTCHA challenge
-      await page.evaluate(() => {
-        const s = angular.element(document.querySelector('[ng-controller="solicitudesCtrl"]')).scope();
-        s.modeloSolicitud.submitted = true;
-        s.$apply();
-      });
-
-      // Use plugin to solve all captchas on page
+      // Use plugin to solve the invisible reCAPTCHA
       const captchaResult = await page.solveRecaptchas();
 
       if (captchaResult.error) {
@@ -347,7 +391,7 @@ async function run() {
         throw new Error(`2captcha falló: ${captchaResult.error}`);
       }
 
-      // Extract token from solutions (provider response) or solved (applied result)
+      // Get the solved token
       const token = captchaResult.solutions?.[0]?.text
         || captchaResult.solved?.[0]?.text
         || await page.evaluate(() => { try { return grecaptcha.getResponse(); } catch { return null; } });
@@ -355,48 +399,44 @@ async function run() {
       if (token) {
         console.log(`  OK captcha resuelto: ${token.substring(0, 40)}...`);
 
-        // Inject the token into Angular scope and trigger enviarSolicitud
+        // Use setResponse() — the Angular callback that Sura expects.
+        // setResponse(response) sets the token AND calls enviarSolicitud() automatically.
         await page.evaluate((captchaToken) => {
           const s = angular.element(document.querySelector('[ng-controller="solicitudesCtrl"]')).scope();
-          if (!s.modeloSolicitud.recaptcha) s.modeloSolicitud.recaptcha = {};
-          s.modeloSolicitud.recaptcha.response = captchaToken;
-          s.$apply();
-          s.enviarSolicitud();
+          s.setResponse(captchaToken);
           s.$apply();
         }, token);
 
         console.log('  Esperando respuesta del servidor...');
-        await delay(10000);
+        await delay(15000);
       } else {
-        console.log('  WARN: No se obtuvo token de captcha');
-        // Try calling setResponse directly in case plugin injected via callback
+        console.log('  WARN: No se obtuvo token, intentando execute()...');
+        // Trigger the invisible captcha via vcRecaptchaService.execute()
+        // The 2captcha plugin should intercept and solve it, then the callback fires.
         await page.evaluate(() => {
+          const injector = angular.element(document.body).injector();
+          const vcService = injector.get('vcRecaptchaService');
           const s = angular.element(document.querySelector('[ng-controller="solicitudesCtrl"]')).scope();
-          const t = typeof grecaptcha !== 'undefined' ? grecaptcha.getResponse() : null;
-          if (t) {
-            s.setResponse(t);
-            s.$apply();
-          }
+          const widgetId = s.modeloSolicitud?.recaptcha?.recaptchaId || 0;
+          vcService.execute(widgetId);
         });
-        await delay(10000);
+        console.log('  Ejecutando captcha invisible, esperando resolución...');
+        await delay(30000);
       }
 
-      // Retry if no response yet
+      // Retry if no response yet — try execute() as fallback
       if (!submitResponse) {
-        console.log('  Reintentando envío...');
-        const gToken = await page.evaluate(() => {
-          try { return grecaptcha.getResponse(); } catch { return null; }
+        console.log('  Reintentando con execute()...');
+        await page.evaluate(() => {
+          const injector = angular.element(document.body).injector();
+          const vcService = injector.get('vcRecaptchaService');
+          const s = angular.element(document.querySelector('[ng-controller="solicitudesCtrl"]')).scope();
+          const widgetId = s.modeloSolicitud?.recaptcha?.recaptchaId || 0;
+          // Reset and re-execute
+          vcService.reload(widgetId);
+          vcService.execute(widgetId);
         });
-        if (gToken) {
-          await page.evaluate((t) => {
-            const s = angular.element(document.querySelector('[ng-controller="solicitudesCtrl"]')).scope();
-            if (!s.modeloSolicitud.recaptcha) s.modeloSolicitud.recaptcha = {};
-            s.modeloSolicitud.recaptcha.response = t;
-            s.setResponse(t);
-            s.$apply();
-          }, gToken);
-          await delay(10000);
-        }
+        await delay(30000);
       }
 
     } else {
